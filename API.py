@@ -1,10 +1,12 @@
 import sys
+import os
 import time
 from PyQt5 import uic
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow , QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox,QFileDialog
 import serial.tools.list_ports
 from mecg20 import *
+Label_reader={'normal':0,'afib':1}
 
 
 
@@ -86,24 +88,61 @@ class GCBME_app(QMainWindow):
 
     def start_test(self):
         self.button_pause=True
+        self.AI_pred=[]
+        self.label=[]
+        
+        
         if self.device.connect(-1, 5000) == False:
             print('Error: ECG device is not connected')
             self.device.free()
             sys.exit()
         print('device is connected... ' + self.device.get_serial_number())
-        send_str="okay"
-        self.ser.write(send_str.encode())
-        while 1:
-                                if ser.inWaiting() > 0:
-                                    result = ser.readline()   # Get OKEY and start to send ECG
-                                    print(result)
-                                    break     
 
-            if(self.button_pause):
-                print("still_in")
-                QApplication.processEvents() 
-            else:
-                break
+        if not (os.path.exists(self.data_path.text)):
+            print("請指定正確 data folder")
+            return
+        else:
+            data_folder=self.data_path.text
+
+        for dirpath, dirnames,files_in_directory in os.walk(data_folder):
+            for file in files_in_directory:
+                file_path=os.path.join(dirpath,file)
+                if dirnames.find("afib"):
+                    self.label.append(1)
+                else:
+                    self.label.append(1)
+                send_str="okay"
+                self.ser.write(send_str.encode())
+
+################################################# Start sending ECG ######################################################     
+                print('output whaleteq-format data...')
+                sys.stdout.flush()  
+                header = self.device.load_whaleteq_database(create_string_buffer(file_path.encode('ascii'))) 
+                sys.stdout.flush()               
+                if not header:
+                    print('failed')
+                    self.device.free()
+                    sys.exit()             
+                self.device.output_waveform(0, None, None)   # Send ECG to simulator 
+
+                while 1:
+                    if self.ser.inWaiting() > 0:
+                        result = self.ser.readline()   # Get OKEY and start to send ECG
+                        print(result)
+                        self.AI_pred.append(Label_reader[result])
+                        break                        
+
+        # while 1:
+        #                         if ser.inWaiting() > 0:
+        #                             result = ser.readline()   # Get OKEY and start to send ECG
+        #                             print(result)
+        #                             break     
+
+            # if(self.button_pause):
+            #     print("still_in")
+            #     QApplication.processEvents() 
+            # else:
+            #     break
 
         # print('Stop')                                  
         # device.stop_output()
@@ -142,60 +181,7 @@ class GCBME_app(QMainWindow):
         #         print(result)
         #         break                        
         # device.output_waveform(0, None, None)   # Send ECG to simulator
-        pass
 
-# class SerialApp(QWidget):
-#     def __init__(self):
-#         super().__init__()
-        
-#         # Main layout
-#         self.layout = QVBoxLayout()
-        
-#         # Label to display selected port
-#         self.label = QLabel("Select a Serial Port:", self)
-#         self.layout.addWidget(self.label)
-        
-#         # ComboBox to list serial ports
-#         self.combo = QComboBox(self)
-#         self.layout.addWidget(self.combo)
-        
-#         # Button to refresh the list of available serial ports
-#         self.refresh_button = QPushButton("Refresh Ports", self)
-#         self.refresh_button.clicked.connect(self.update_ports)
-#         self.layout.addWidget(self.refresh_button)
-        
-#         # Button to connect to the selected serial port
-#         self.connect_button = QPushButton("Connect", self)
-#         self.connect_button.clicked.connect(self.connect_serial)
-#         self.layout.addWidget(self.connect_button)
-        
-#         # Set layout and window title
-#         self.setLayout(self.layout)
-#         self.setWindowTitle('Serial Port Selector')
-
-#         # Populate initial ports list
-#         self.update_ports()
-
-#     def update_ports(self):
-#         """Updates the list of available serial ports."""
-#         self.combo.clear()  # Clear the combo box
-#         ports = serial.tools.list_ports.comports()
-#         for port in ports:
-#             self.combo.addItem(port.device)  # Add port name to combo box
-    
-#     def connect_serial(self):
-#         """Handles the serial connection when the user selects a port."""
-#         selected_port = self.combo.currentText()
-#         if selected_port:
-#             self.label.setText(f"Connecting to {selected_port}...")
-#             # Add your serial connection logic here
-#             try:
-#                 self.serial_conn = serial.Serial(selected_port, 9600)  # Default baudrate
-#                 self.label.setText(f"Connected to {selected_port}")
-#             except Exception as e:
-#                 self.label.setText(f"Failed to connect: {str(e)}")
-#         else:
-#             self.label.setText("No serial port selected!")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
