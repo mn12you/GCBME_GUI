@@ -6,7 +6,7 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow , QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox,QFileDialog
 import serial.tools.list_ports
 from mecg20 import *
-Label_reader={'normal':0,'afib':1}
+Label_reader={'kNormal':0,'kAFib':1}
 
 
 
@@ -48,19 +48,19 @@ class GCBME_app(QMainWindow):
     def connect_port(self):
         comport=self.Serial_item.currentText()
         if comport!="":
-            baudrate=23400
+            baudrate=115200
             print(comport + ' @ ' + '%d' %baudrate)
             self.ser.port =comport
             self.ser.baudrate = baudrate
-            self.ser.bytesize = serial.EIGHTBITS #number of bits per bytes
-            self.ser.parity = serial.PARITY_NONE #set parity check
-            self.ser.stopbits = serial.STOPBITS_ONE #number of stop bits
+            # self.ser.bytesize = serial.EIGHTBITS #number of bits per bytes
+            # self.ser.parity = serial.PARITY_NONE #set parity check
+            # self.ser.stopbits = serial.STOPBITS_ONE #number of stop bits
 
-            self.ser.timeout = 0.3        #non-block read 0.5s
-            self.ser.writeTimeout = 0.5     #timeout for write 0.5s
-            self.ser.xonxoff = False    #disable software flow control
-            self.ser.rtscts = False     #disable hardware (RTS/CTS) flow control
-            self.ser.dsrdtr = False     #disable hardware (DSR/DTR) flow control
+            # self.ser.timeout = 0.3        #non-block read 0.5s
+            # self.ser.writeTimeout = 0.5     #timeout for write 0.5s
+            # self.ser.xonxoff = False    #disable software flow control
+            # self.ser.rtscts = False     #disable hardware (RTS/CTS) flow control
+            # self.ser.dsrdtr = False     #disable hardware (DSR/DTR) flow control
             try: 
                 self.ser.open()
             except Exception as ex:
@@ -98,20 +98,20 @@ class GCBME_app(QMainWindow):
             sys.exit()
         print('device is connected... ' + self.device.get_serial_number())
 
-        if not (os.path.exists(self.data_path.text)):
+        if not (os.path.exists(self.data_path.text())):
             print("請指定正確 data folder")
             return
         else:
-            data_folder=self.data_path.text
+            data_folder=self.data_path.text()
 
         for dirpath, dirnames,files_in_directory in os.walk(data_folder):
             for file in files_in_directory:
                 file_path=os.path.join(dirpath,file)
-                if dirnames.find("afib"):
+                if dirpath.find("Afib"):
                     self.label.append(1)
                 else:
                     self.label.append(1)
-                send_str="okay"
+                send_str="k"
                 self.ser.write(send_str.encode())
 
 ################################################# Start sending ECG ######################################################     
@@ -127,9 +127,12 @@ class GCBME_app(QMainWindow):
 
                 while 1:
                     if self.ser.inWaiting() > 0:
-                        result = self.ser.readline()   # Get OKEY and start to send ECG
-                        print(result)
-                        self.AI_pred.append(Label_reader[result])
+                        result = self.ser.readline()
+                        decoded_data = result.decode('ascii').strip()     # Get OKEY and start to send ECG
+                        self.AI_pred.append(Label_reader[decoded_data])
+                        print(decoded_data )
+                        print(self.AI_pred)
+                        print(self.label)
                         break                        
 
         # while 1:
