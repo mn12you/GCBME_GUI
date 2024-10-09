@@ -11,7 +11,7 @@ def pause():
 
 
 def get_lib_path():
-    lib_base = "SDK"    
+    lib_base = "SDK_mecg_20"    
     if platform.system() == 'Windows':
         if struct.calcsize("P") == 4:
             lib_name = "MECG20x86.dll"
