@@ -249,9 +249,9 @@ class SECG50:
     def get_lib_path():
         if platform.system() == 'Windows':
             if struct.calcsize("P") == 4:
-                path = "../../SDK_secg50/SECG50x86.dll"
+                path = "./SDK_secg50/SECG50x86.dll"
             else:
-                path = "../../SDK_secg50/SECG50x64.dll"
+                path = "./SDK_secg50/SECG50x64.dll"
         else:
             raise Exception("Unsupported System")
 
