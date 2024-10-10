@@ -11,7 +11,7 @@ def pause():
 
 
 def get_lib_path():
-    lib_base = "./SDK_aecg100"
+    lib_base = "./SDK_aecg_100"
     if platform.system() == 'Windows':
         if struct.calcsize("P") == 4:
             lib_name = "AECG100x86.dll"

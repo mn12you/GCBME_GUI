@@ -123,7 +123,7 @@
               </widget>
              </item>
              <item>
-              <widget class="QTextBrowser" name="textBrowser_2"/>
+              <widget class="QTextBrowser" name="Terminal_result"/>
              </item>
             </layout>
            </item>
