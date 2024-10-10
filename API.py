@@ -6,7 +6,37 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow , QWidget, QVBoxLayout, QLabel, QPushButton, QComboBox,QFileDialog
 import serial.tools.list_ports
 from mecg20 import *
+from aecg100 import *
+from secg50 import *
 Label_reader={'kNormal':0,'kAFib':1}
+
+ac = None
+dc = None
+def load_raw_data_file(file_name):
+    global ac, dc
+    
+    play_raw_data = PLAY_RAW_DATA()
+    lineNumber = 0
+    f = open(file_name)
+    for x in f:
+        if lineNumber == 0:
+            play_raw_data.SampleRate = int(x)
+        elif lineNumber == 1:
+            play_raw_data.Size = int(x)
+            ac = (c_double * play_raw_data.Size)()
+            dc = (c_double * play_raw_data.Size)()
+        elif lineNumber >= 4:
+            ac[lineNumber-4] = float(x)
+            dc[lineNumber-4] = 0
+
+        lineNumber = lineNumber + 1
+
+    f.close()
+
+    play_raw_data.AC = addressof(ac)
+    play_raw_data.DC = addressof(dc)
+    play_raw_data.OutputSignalCallback = OutputSignalCallback(0)
+    return play_raw_data
 
 
 
@@ -22,7 +52,8 @@ class GCBME_app(QMainWindow):
         super().__init__()
         uic.loadUi('GUI.ui',self)
 
-        self.device = MECG20()
+        # self.device = MECG20()
+        self.device_name=0
         self.ser = serial.Serial()
         self.button_pause=True
         self.AI_pred=[]
@@ -90,6 +121,13 @@ class GCBME_app(QMainWindow):
         self.button_pause=True
         self.AI_pred=[]
         self.label=[]
+        if self.ECG_device_box.currentText()=="AECG100":
+            self.device=AECG100()
+            self.device_name=0
+        else:
+            self.device=SECG50()
+            self.device_name=1
+
         
         
         if self.device.connect(-1, 5000) == False:
@@ -116,16 +154,43 @@ class GCBME_app(QMainWindow):
 
 ################################################# Start sending ECG ######################################################     
                 print('output whaleteq-format data...')
-                sys.stdout.flush()  
-                header = self.device.load_whaleteq_database(create_string_buffer(file_path.encode('ascii'))) 
-                sys.stdout.flush()               
-                if not header:
-                    print('failed')
-                    self.device.free()
-                    sys.exit()             
-                self.device.output_waveform(0, None, None)   # Send ECG to simulator 
-
+                if self.device_name==0:
+                    raw_data = load_raw_data_file(file_path)
+                    self.device.enable_player_loop(c_bool(True))
+                    self.device.play_raw_ecg(pointer(raw_data))
+                elif self.device_name==1:
+                    self.device.reset()
+                    fileName = c_char_p(file_path.encode('utf-8'))
+                    success = self.device.load_ecg_txt(fileName, 0)  # Load .txt file in whaleteq format
+                    if success > 0:
+                        self.device.set_output_function(OutputFunction.Output_ECG_File.value)
+                    elif success == -1:
+                        raise IOError("Open file failed")
+                    elif success == -2:
+                        raise IOError("Invalid sample rate in Line 1")
+                    elif success == -3:
+                        raise IOError("Invalid sample number in Line 2")
+                    elif success == -4:
+                        raise IOError("Invalid channel number in Line 3")
+                    elif success == -5:
+                        raise IOError("Invalid description in Line 4")
+                    elif success == -6:
+                        raise IOError("Raw data file is too large to fit the memory")
+                    elif success == -7:
+                        raise IOError("No such channel")
+                    else:
+                        sys.exit()
+                else:
+                    sys.stdout.flush()  
+                    header = self.device.load_whaleteq_database(create_string_buffer(file_path.encode('ascii'))) 
+                    sys.stdout.flush()               
+                    if not header:
+                        print('failed')
+                        self.device.free()
+                        sys.exit()             
+                    self.device.output_waveform(0, None, None)   # Send ECG to simulator 
                 while 1:
+                    QApplication.processEvents() 
                     if self.ser.inWaiting() > 0:
                         result = self.ser.readline()
                         decoded_data = result.decode('ascii').strip()     # Get OKEY and start to send ECG
@@ -133,6 +198,10 @@ class GCBME_app(QMainWindow):
                         print(decoded_data )
                         print(self.AI_pred)
                         print(self.label)
+                        if self.device_name==0:
+                            self.device.stop_output()
+                        elif self.device_name==1:
+                            self.device.set_output_function(OutputFunction.Output_Off.value)
                         break                        
 
         # while 1:
