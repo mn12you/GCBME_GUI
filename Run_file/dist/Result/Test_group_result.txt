@@ -1,0 +1,8 @@
+##########
+ The accuracy is: 50.0
+ The latency is: 2.51
+Confusion matrix is:
+
+                              Predicted Normal              Predicted Afib                
+Actual Normal                 4                             0                             
+Actual Afib                   4                             0                             
